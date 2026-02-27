@@ -1,0 +1,1565 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DRAXTON · Flujo de Datos RFQ</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=Syne:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════
+   VARIABLES & RESET
+═══════════════════════════════════════════════════════ */
+:root {
+  --bg:        #0d0f14;
+  --bg2:       #13161d;
+  --bg3:       #1a1e28;
+  --border:    #252932;
+  --border2:   #2f3545;
+  --text:      #c8cdd8;
+  --text-dim:  #5a6175;
+  --text-head: #edf0f7;
+
+  --red:       #e8463a;
+  --red-dim:   rgba(232,70,58,.12);
+  --blue:      #3a8ff0;
+  --blue-dim:  rgba(58,143,240,.12);
+  --green:     #34c77b;
+  --green-dim: rgba(52,199,123,.1);
+  --amber:     #f0a332;
+  --amber-dim: rgba(240,163,50,.1);
+  --purple:    #9b6ef3;
+  --purple-dim:rgba(155,110,243,.1);
+  --teal:      #26c4b8;
+  --teal-dim:  rgba(38,196,184,.1);
+
+  --font-head: 'Syne', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+  --font-body: 'Inter', sans-serif;
+  --radius:    6px;
+  --transition: .2s cubic-bezier(.4,0,.2,1);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.65;
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ═══════════════════════════════════════════════════════
+   SIDEBAR
+═══════════════════════════════════════════════════════ */
+.sidebar {
+  width: 260px;
+  min-width: 260px;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+}
+
+.sidebar-logo {
+  padding: 28px 24px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-logo .brand {
+  font-family: var(--font-head);
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-head);
+  letter-spacing: .04em;
+}
+.sidebar-logo .brand span { color: var(--red); }
+.sidebar-logo .sub {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+.sidebar-nav { padding: 16px 0; flex: 1; }
+.nav-section-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 12px 24px 6px;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 24px;
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  transition: var(--transition);
+  border-left: 2px solid transparent;
+  cursor: pointer;
+}
+.nav-item:hover { color: var(--text); background: rgba(255,255,255,.03); }
+.nav-item.active { color: var(--text-head); border-left-color: var(--red); background: rgba(232,70,58,.06); }
+.nav-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: currentColor;
+  opacity: .5;
+}
+.nav-item.active .nav-dot { opacity: 1; }
+
+/* colored dots per module */
+.nav-item[data-mod="tqp"] .nav-dot    { color: var(--amber); }
+.nav-item[data-mod="cast"] .nav-dot   { color: var(--blue); }
+.nav-item[data-mod="mach"] .nav-dot   { color: var(--teal); }
+.nav-item[data-mod="pa"] .nav-dot     { color: var(--purple); }
+.nav-item[data-mod="erp"] .nav-dot    { color: var(--green); }
+.nav-item[data-mod="db"] .nav-dot     { color: var(--red); }
+.nav-item[data-mod="flow"] .nav-dot   { color: var(--text); }
+
+.sidebar-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+/* ═══════════════════════════════════════════════════════
+   MAIN CONTENT
+═══════════════════════════════════════════════════════ */
+.main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 0 80px;
+}
+
+/* ── HERO ── */
+.hero {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 56px 64px 48px;
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -100px; right: -100px;
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, rgba(232,70,58,.07) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--red);
+  margin-bottom: 16px;
+}
+.hero h1 {
+  font-family: var(--font-head);
+  font-size: 42px;
+  font-weight: 800;
+  color: var(--text-head);
+  line-height: 1.1;
+  max-width: 620px;
+}
+.hero h1 em { font-style: normal; color: var(--red); }
+.hero-desc {
+  max-width: 560px;
+  margin-top: 16px;
+  color: var(--text-dim);
+  font-size: 15px;
+  line-height: 1.7;
+}
+.hero-stats {
+  display: flex;
+  gap: 32px;
+  margin-top: 32px;
+}
+.hero-stat { }
+.hero-stat .num {
+  font-family: var(--font-head);
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text-head);
+}
+.hero-stat .lbl {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--text-dim);
+}
+
+/* ── SECTIONS ── */
+.section {
+  padding: 56px 64px;
+  border-bottom: 1px solid var(--border);
+}
+.section:last-child { border-bottom: none; }
+
+.section-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+.section h2 {
+  font-family: var(--font-head);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-head);
+  margin-bottom: 8px;
+}
+.section .section-intro {
+  color: var(--text-dim);
+  max-width: 680px;
+  margin-bottom: 36px;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+/* ── MODULE CARDS ── */
+.module-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 40px;
+}
+.module-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 28px;
+  position: relative;
+  overflow: hidden;
+  transition: var(--transition);
+}
+.module-card:hover { border-color: var(--border2); }
+.module-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 3px; height: 100%;
+}
+.module-card.tqp::before   { background: var(--amber); }
+.module-card.cast::before  { background: var(--blue); }
+.module-card.mach::before  { background: var(--teal); }
+.module-card.pa::before    { background: var(--purple); }
+
+.module-card .card-tag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 3px;
+  display: inline-block;
+  margin-bottom: 14px;
+}
+.module-card.tqp .card-tag   { background: var(--amber-dim); color: var(--amber); }
+.module-card.cast .card-tag  { background: var(--blue-dim); color: var(--blue); }
+.module-card.mach .card-tag  { background: var(--teal-dim); color: var(--teal); }
+.module-card.pa .card-tag    { background: var(--purple-dim); color: var(--purple); }
+
+.module-card h3 {
+  font-family: var(--font-head);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-head);
+  margin-bottom: 8px;
+}
+.module-card p {
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* ── FLOW PIPELINE ── */
+.pipeline {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin: 36px 0;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+.pipe-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 120px;
+}
+.pipe-node {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  border: 2px solid;
+  position: relative;
+  z-index: 1;
+}
+.pipe-node.tqp   { border-color: var(--amber); color: var(--amber); background: var(--amber-dim); }
+.pipe-node.cast  { border-color: var(--blue);  color: var(--blue);  background: var(--blue-dim); }
+.pipe-node.mach  { border-color: var(--teal);  color: var(--teal);  background: var(--teal-dim); }
+.pipe-node.pa    { border-color: var(--purple);color: var(--purple);background: var(--purple-dim); }
+.pipe-node.erp   { border-color: var(--green); color: var(--green); background: var(--green-dim); }
+.pipe-node.db    { border-color: var(--red);   color: var(--red);   background: var(--red-dim); }
+.pipe-label {
+  font-size: 11px;
+  text-align: center;
+  color: var(--text-dim);
+  margin-top: 8px;
+  max-width: 100px;
+}
+.pipe-arrow {
+  flex: 1;
+  min-width: 32px;
+  height: 2px;
+  background: var(--border2);
+  position: relative;
+  top: -14px;
+}
+.pipe-arrow::after {
+  content: '';
+  position: absolute;
+  right: 0; top: -3px;
+  border: 4px solid transparent;
+  border-left: 6px solid var(--border2);
+}
+
+/* ── DATA FLOW BLOCKS ── */
+.flow-block {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.flow-block-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+  transition: var(--transition);
+}
+.flow-block-header:hover { background: rgba(255,255,255,.02); }
+.flow-block-icon {
+  width: 36px; height: 36px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+.flow-block.tqp .flow-block-icon   { background: var(--amber-dim); }
+.flow-block.cast .flow-block-icon  { background: var(--blue-dim); }
+.flow-block.mach .flow-block-icon  { background: var(--teal-dim); }
+.flow-block.pa .flow-block-icon    { background: var(--purple-dim); }
+
+.flow-block-title {
+  flex: 1;
+}
+.flow-block-title h4 {
+  font-family: var(--font-head);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-head);
+}
+.flow-block-title span {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: .1em;
+}
+.flow-block-direction {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.badge-erp  { color: var(--green); }
+.badge-cast { color: var(--blue); }
+.badge-tqp  { color: var(--amber); }
+.badge-mach { color: var(--teal); }
+.badge-pa   { color: var(--purple); }
+.arrow-icon { color: var(--text-dim); }
+
+.flow-block-body {
+  padding: 24px;
+  display: block;
+}
+.flow-block-body.collapsed { display: none; }
+.toggle-chevron {
+  font-size: 12px;
+  color: var(--text-dim);
+  transition: transform var(--transition);
+}
+.flow-block-header.open .toggle-chevron { transform: rotate(180deg); }
+
+/* ── TABLES ── */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+.data-table th {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  text-align: left;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.data-table td {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: rgba(255,255,255,.02); }
+
+.cell-ref {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--amber);
+  font-weight: 500;
+}
+.field-name {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--blue);
+}
+.field-name.teal { color: var(--teal); }
+.field-name.purple { color: var(--purple); }
+.source-tag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  display: inline-block;
+}
+.src-erp  { background: var(--green-dim); color: var(--green); }
+.src-bd   { background: var(--blue-dim);  color: var(--blue); }
+.src-tqp  { background: var(--amber-dim); color: var(--amber); }
+
+/* ── SUB SECTION HEADERS ── */
+.sub-heading {
+  font-family: var(--font-head);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-head);
+  margin: 24px 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sub-heading::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.sub-num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+/* ── DB TABLE TAG ── */
+.db-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 3px 9px;
+  border-radius: 3px;
+  border: 1px solid;
+  display: inline-block;
+  margin-bottom: 14px;
+}
+.db-tag.cast  { border-color: var(--blue);   color: var(--blue);   background: var(--blue-dim); }
+.db-tag.mach  { border-color: var(--teal);   color: var(--teal);   background: var(--teal-dim); }
+.db-tag.tqp   { border-color: var(--amber);  color: var(--amber);  background: var(--amber-dim); }
+.db-tag.pa    { border-color: var(--purple); color: var(--purple); background: var(--purple-dim); }
+
+/* ── NOTE BOXES ── */
+.note {
+  border-radius: 6px;
+  padding: 14px 18px;
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 16px;
+  display: flex;
+  gap: 12px;
+}
+.note-icon { flex-shrink: 0; font-size: 15px; }
+.note-body p + p { margin-top: 6px; }
+.note.info    { background: var(--blue-dim);   border: 1px solid rgba(58,143,240,.2);   color: #8ab8f5; }
+.note.amber   { background: var(--amber-dim);  border: 1px solid rgba(240,163,50,.2);   color: #d4a84f; }
+.note.success { background: var(--green-dim);  border: 1px solid rgba(52,199,123,.2);   color: #6dd4a0; }
+.note.purple  { background: var(--purple-dim); border: 1px solid rgba(155,110,243,.2);  color: #b08af7; }
+.note strong  { color: inherit; font-weight: 600; }
+
+/* ── PLANT MATRIX ── */
+.plant-matrix {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.plant-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px;
+}
+.plant-card .plant-name {
+  font-family: var(--font-head);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-head);
+  margin-bottom: 8px;
+}
+.plant-card .plant-sheet {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.plant-card .plant-badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  display: inline-block;
+  background: var(--blue-dim);
+  color: var(--blue);
+}
+.plant-card.special .plant-badge { background: var(--teal-dim); color: var(--teal); }
+.plant-card.special { border-color: rgba(38,196,184,.2); }
+
+/* ── MAPPING GRID ── */
+.map-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.map-block {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.map-block-header {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.map-block-header.cast  { color: var(--blue); }
+.map-block-header.mach  { color: var(--teal); }
+.map-block table { width: 100%; font-size: 12px; }
+.map-block td { padding: 6px 16px; border-bottom: 1px solid var(--border); }
+.map-block tr:last-child td { border-bottom: none; }
+.map-block .rn { font-family: var(--font-mono); color: var(--text-dim); font-size: 11px; }
+.map-block .cl { font-family: var(--font-mono); color: var(--amber); font-size: 11px; }
+
+/* ── TIMELINE / FLOW ── */
+.flow-list { list-style: none; position: relative; padding-left: 24px; }
+.flow-list::before {
+  content: '';
+  position: absolute;
+  left: 7px; top: 8px; bottom: 8px;
+  width: 1px;
+  background: var(--border);
+}
+.flow-list li {
+  position: relative;
+  padding: 4px 0 14px 16px;
+  font-size: 13px;
+  color: var(--text);
+}
+.flow-list li::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 8px;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--border2);
+  border: 1px solid var(--border);
+}
+.flow-list li.done::before { background: var(--green); border-color: var(--green); }
+.flow-list li.active::before { background: var(--amber); border-color: var(--amber); }
+
+/* ── INLINE CODE ── */
+code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  padding: 1px 6px;
+  border-radius: 3px;
+  color: var(--teal);
+}
+
+/* ── OVERVIEW FLOW ── */
+.overview-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+  padding-left: 32px;
+}
+.overview-flow::before {
+  content: '';
+  position: absolute;
+  left: 12px; top: 20px; bottom: 20px;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--green), var(--amber), var(--blue), var(--teal), var(--purple));
+}
+.ov-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 16px 0;
+}
+.ov-dot {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+  position: relative;
+  left: -33px;
+  margin-right: -33px;
+  border: 2px solid;
+  background: var(--bg);
+  z-index: 1;
+}
+.ov-dot.erp    { border-color: var(--green);  color: var(--green); }
+.ov-dot.tqp    { border-color: var(--amber);  color: var(--amber); }
+.ov-dot.cast   { border-color: var(--blue);   color: var(--blue); }
+.ov-dot.mach   { border-color: var(--teal);   color: var(--teal); }
+.ov-dot.pa     { border-color: var(--purple); color: var(--purple); }
+.ov-content h4 {
+  font-family: var(--font-head);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-head);
+  margin-bottom: 4px;
+}
+.ov-content p { font-size: 13px; color: var(--text-dim); }
+.ov-tags { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.ov-tag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 1200px) {
+  .sidebar { width: 220px; min-width: 220px; }
+  .section { padding: 40px 40px; }
+  .hero { padding: 40px 40px; }
+  .module-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ SIDEBAR ═══════════════════ -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="brand"><span>DRAXTON</span> RFQ</div>
+    <div class="sub">Flujo de datos · v2.0</div>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-section-label">Introducción</div>
+    <a class="nav-item active" data-mod="flow" href="#overview" onclick="setActive(this)">
+      <span class="nav-dot"></span> Visión general
+    </a>
+    <a class="nav-item" data-mod="erp" href="#erp" onclick="setActive(this)">
+      <span class="nav-dot"></span> ERP Expertis
+    </a>
+    <a class="nav-item" data-mod="db" href="#db" onclick="setActive(this)">
+      <span class="nav-dot"></span> Base de datos
+    </a>
+
+    <div class="nav-section-label">Módulos</div>
+    <a class="nav-item" data-mod="tqp" href="#tqp" onclick="setActive(this)">
+      <span class="nav-dot"></span> TQP
+    </a>
+    <a class="nav-item" data-mod="cast" href="#casting" onclick="setActive(this)">
+      <span class="nav-dot"></span> Casting Cost
+    </a>
+    <a class="nav-item" data-mod="mach" href="#machining" onclick="setActive(this)">
+      <span class="nav-dot"></span> Machining Cost
+    </a>
+    <a class="nav-item" data-mod="pa" href="#pa" onclick="setActive(this)">
+      <span class="nav-dot"></span> PA Data Insert
+    </a>
+
+    <div class="nav-section-label">Referencia</div>
+    <a class="nav-item" data-mod="db" href="#plantas" onclick="setActive(this)">
+      <span class="nav-dot"></span> Plantas soportadas
+    </a>
+    <a class="nav-item" data-mod="db" href="#archivos" onclick="setActive(this)">
+      <span class="nav-dot"></span> Archivos generados
+    </a>
+  </div>
+  <div class="sidebar-footer">
+    DRAXTON · Sistema RFQ<br>Documentación técnica
+  </div>
+</nav>
+
+<!-- ═══════════════════ MAIN ═══════════════════ -->
+<main class="main">
+
+  <!-- ── HERO ── -->
+  <div class="hero">
+    <div class="hero-eyebrow">Documentación técnica de flujo de datos</div>
+    <h1>¿Cómo viajan tus <em>datos</em> por el sistema?</h1>
+    <p class="hero-desc">Esta guía detalla, campo a campo y celda a celda, el recorrido completo que sigue la información de una oferta RFQ desde Expertis hasta la PlantillaPA de Controlling.</p>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="num">4</div><div class="lbl">Módulos</div></div>
+      <div class="hero-stat"><div class="num">7</div><div class="lbl">Operaciones</div></div>
+      <div class="hero-stat"><div class="num">9</div><div class="lbl">Plantas</div></div>
+      <div class="hero-stat"><div class="num">10</div><div class="lbl">Tablas BD</div></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SECCIÓN 1 — VISIÓN GENERAL
+  ══════════════════════════════════════════ -->
+  <section class="section" id="overview">
+    <div class="section-eyebrow">01 · Introducción</div>
+    <h2>Visión general del proceso</h2>
+    <p class="section-intro">El sistema DRAXTON RFQ Job Executor automatiza el flujo de información desde el ERP Expertis hasta los documentos de análisis de costes. El único dato que el usuario introduce manualmente es el <strong style="color:var(--text-head)">RFQ Number</strong> y la <strong style="color:var(--text-head)">Versión</strong>.</p>
+
+    <div class="overview-flow">
+      <div class="ov-step">
+        <div class="ov-dot erp">ERP</div>
+        <div class="ov-content">
+          <h4>Expertis — Fuente de verdad</h4>
+          <p>Toda la información comercial de la oferta: cliente, referencia, volúmenes de producción, responsable logístico. El sistema se conecta automáticamente al introducir el RFQ.</p>
+          <div class="ov-tags">
+            <span class="ov-tag" style="background:var(--green-dim);color:var(--green);">tbOfertaComercialCabecera</span>
+            <span class="ov-tag" style="background:var(--green-dim);color:var(--green);">vIPSCIRampUps</span>
+            <span class="ov-tag" style="background:var(--green-dim);color:var(--green);">tbMaestroEmpresa</span>
+          </div>
+        </div>
+      </div>
+      <div class="ov-step">
+        <div class="ov-dot tqp">TQP</div>
+        <div class="ov-content">
+          <h4>TQP — Parámetros técnicos de cotización</h4>
+          <p>Se rellena el Excel TQP con datos del ERP. El usuario completa los datos técnicos (pesos, velocidades, machos) y el sistema los recoge y guarda en base de datos.</p>
+          <div class="ov-tags">
+            <span class="ov-tag" style="background:var(--amber-dim);color:var(--amber);">TQP Data Insert</span>
+            <span class="ov-tag" style="background:var(--amber-dim);color:var(--amber);">TQP Brakes Data Recolection</span>
+            <span class="ov-tag" style="background:var(--amber-dim);color:var(--amber);">RFQ_TQP_DataCastingCost</span>
+          </div>
+        </div>
+      </div>
+      <div class="ov-step">
+        <div class="ov-dot cast">CAST</div>
+        <div class="ov-content">
+          <h4>Casting Cost — Costes de fundición</h4>
+          <p>Se crea el Excel de costes con datos de Expertis + TQP pre-cargados. El usuario completa los costes por planta y el Recolect los persiste en 7 tablas de base de datos.</p>
+          <div class="ov-tags">
+            <span class="ov-tag" style="background:var(--blue-dim);color:var(--blue);">Casting Data Insert</span>
+            <span class="ov-tag" style="background:var(--blue-dim);color:var(--blue);">Casting Data Recolect</span>
+            <span class="ov-tag" style="background:var(--blue-dim);color:var(--blue);">8 plantas de fundición</span>
+          </div>
+        </div>
+      </div>
+      <div class="ov-step">
+        <div class="ov-dot mach">MACH</div>
+        <div class="ov-content">
+          <h4>Machining Cost — Costes de mecanizado</h4>
+          <p>Proceso paralelo al Casting pero independiente: un archivo Excel por planta, relleno directo desde Expertis sin necesidad de TQP. 3 plantas de mecanizado.</p>
+          <div class="ov-tags">
+            <span class="ov-tag" style="background:var(--teal-dim);color:var(--teal);">Machining Data Insert</span>
+            <span class="ov-tag" style="background:var(--teal-dim);color:var(--teal);">Machining Data Recolect</span>
+            <span class="ov-tag" style="background:var(--teal-dim);color:var(--teal);">Lleida · Wroclaw · Wuhu</span>
+          </div>
+        </div>
+      </div>
+      <div class="ov-step">
+        <div class="ov-dot pa">PA</div>
+        <div class="ov-content">
+          <h4>PA Data Insert — Controlling</h4>
+          <p>Paso final. Toma los costes guardados (Casting o Machining) + volúmenes de Expertis y los consolida en la PlantillaPA para análisis financiero de Controlling.</p>
+          <div class="ov-tags">
+            <span class="ov-tag" style="background:var(--purple-dim);color:var(--purple);">PA Data Insert</span>
+            <span class="ov-tag" style="background:var(--purple-dim);color:var(--purple);">PlantillaPA.xlsx</span>
+            <span class="ov-tag" style="background:var(--purple-dim);color:var(--purple);">Database A → J</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       SECCIÓN 2 — ERP EXPERTIS
+  ══════════════════════════════════════════ -->
+  <section class="section" id="erp">
+    <div class="section-eyebrow">02 · Fuente de datos</div>
+    <h2>ERP Expertis</h2>
+    <p class="section-intro">Expertis es la única fuente de entrada que el sistema necesita del usuario. El resto del proceso es automático. Se consultan tres tablas/vistas para nutrir todos los módulos.</p>
+
+    <div class="note info">
+      <span class="note-icon">🔌</span>
+      <div class="note-body"><strong>Conexión automática:</strong> El usuario introduce únicamente el <strong>RFQ Number</strong> y la <strong>Versión</strong>. El sistema se conecta automáticamente a <code>xInfunProjects.dbo</code> y extrae toda la información necesaria.</div>
+    </div>
+
+    <div class="sub-heading"><span class="sub-num">tabla 1</span> tbOfertaComercialCabecera</div>
+    <table class="data-table">
+      <thead><tr><th>Campo</th><th>Tipo</th><th>Usado en</th><th>Destino</th></tr></thead>
+      <tbody>
+        <tr><td><span class="field-name">NumOferta</span></td><td>Identificador</td><td>TQP, Casting, Machining</td><td>Clave primaria de todas las tablas BD + celda D10 TQP / B19 CostesIngenieria</td></tr>
+        <tr><td><span class="field-name">RevOferta</span></td><td>Versión</td><td>Todos los módulos</td><td>Filtro de consulta, campo <code>version</code> en BD</td></tr>
+        <tr><td><span class="field-name">RefCliente</span></td><td>Texto</td><td>TQP</td><td>Celda D14 hoja <em>Preliminary info</em></td></tr>
+        <tr><td><span class="field-name">IDEmpresa</span></td><td>FK → tbMaestroEmpresa</td><td>TQP</td><td>Lookup para obtener DescEmpresa → D11</td></tr>
+        <tr><td><span class="field-name">IDProjectManager</span></td><td>Texto</td><td>Casting</td><td>Celda B20 hoja <em>Technical Study</em></td></tr>
+        <tr><td><span class="field-name">IDUsuarioLogistica</span></td><td>Texto</td><td>Casting, Machining</td><td>Celda B25 (Casting) · C18/C8 (Machining)</td></tr>
+        <tr><td><span class="field-name">RefCliente</span></td><td>Texto</td><td>Casting</td><td>Celda B26 hoja <em>Technical Study</em></td></tr>
+        <tr><td><span class="field-name">DescReferencia</span></td><td>Texto</td><td>Casting, Machining</td><td>Celda B27 (Casting) · C20/C10 (Machining)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-heading"><span class="sub-num">tabla 2</span> vIPSCIRampUps</div>
+    <table class="data-table">
+      <thead><tr><th>Campo</th><th>Tipo</th><th>Transformación</th><th>Destino</th></tr></thead>
+      <tbody>
+        <tr><td><span class="field-name">VolumenXXXX</span> (por año)</td><td>Decimal</td><td><strong>TQP:</strong> suma y media de valores no nulos → G20/G22; estado → G21</td><td>TQP: G20, G21, G22</td></tr>
+        <tr><td><span class="field-name">VolumenXXXX</span></td><td>Decimal</td><td><strong>Casting:</strong> hasta 6 más recientes → E26:E31; conteo → E20; media → E19</td><td>CostesIngenieria: E19, E20, E26–E31</td></tr>
+        <tr><td><span class="field-name">VolumenXXXX</span></td><td>Decimal</td><td><strong>Machining:</strong> hasta 6 más recientes en horizontal</td><td>Cap&amp;Inv fila 18–19 columnas C:H</td></tr>
+        <tr><td><span class="field-name">VolumenXXXX</span></td><td>Decimal</td><td><strong>PA:</strong> hasta 18 valores ordenados descendente por año</td><td>PlantillaPA: E12:V12 (DB A) / E11:V11 (resto)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sub-heading"><span class="sub-num">tabla 3</span> tbMaestroEmpresa</div>
+    <table class="data-table">
+      <thead><tr><th>Campo</th><th>Usado en</th><th>Destino</th></tr></thead>
+      <tbody>
+        <tr><td><span class="field-name">DescEmpresa</span></td><td>TQP (lookup por IDEmpresa)</td><td>Celda D11 hoja <em>Preliminary info</em> del TQP</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       SECCIÓN 3 — BASE DE DATOS
+  ══════════════════════════════════════════ -->
+  <section class="section" id="db">
+    <div class="section-eyebrow">03 · Persistencia</div>
+    <h2>Tablas de base de datos</h2>
+    <p class="section-intro">El sistema usa SQL Server como almacén intermedio. Los datos pasan de Excel a BD (Recolect) para que los módulos posteriores puedan consumirlos sin depender de archivos.</p>
+
+    <table class="data-table">
+      <thead><tr><th>Tabla</th><th>Módulo</th><th>Contenido</th><th>Clave única</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="field-name">RFQ_TQP_DataCastingCost</span></td>
+          <td><span class="db-tag tqp" style="margin:0">TQP</span></td>
+          <td>Parámetros técnicos por cotización (pesos, velocidades, machos)</td>
+          <td><code>NumOferta + quotationToBeCalculated + version</code></td>
+        </tr>
+        <tr>
+          <td><span class="field-name">RFQ_CastingCost_Fund_Header</span></td>
+          <td><span class="db-tag cast" style="margin:0">Casting / Machining</span></td>
+          <td>Cabecera del estudio: planta, cliente, referencia, fechas, volúmenes</td>
+          <td><code>rfq_number + version + study_version + plant_code + cost_type</code></td>
+        </tr>
+        <tr>
+          <td><span class="field-name">RFQ_CastingCost_Fund_GeneralInfo</span></td>
+          <td><span class="db-tag cast" style="margin:0">Casting</span></td>
+          <td>Info general: cavidades, pesos, rendimiento, scrap, precio base</td>
+          <td>FK a Header</td>
+        </tr>
+        <tr>
+          <td><span class="field-name">RFQ_CastingCost_Fund_MaterialCost</span></td>
+          <td><span class="db-tag cast" style="margin:0">Casting</span></td>
+          <td>Costes de materiales fila a fila (material, unidades, coste, totales)</td>
+          <td>FK a Header + row_number</td>
+        </tr>
+        <tr>
+          <td><span class="field-name">RFQ_CastingCost_Fund_Totals</span></td>
+          <td><span class="db-tag cast" style="margin:0">Casting</span></td>
+          <td>Subtotales por grupo de materiales</td>
+          <td>FK a Header + row_number</td>
+        </tr>
+        <tr>
+          <td><span class="field-name">RFQ_CastingCost_Fund_TotalsGlobal</span></td>
+          <td><span class="db-tag cast" style="margin:0">Casting</span></td>
+          <td>Totales globales (por kilo y por pieza)</td>
+          <td>FK a Header + row_number</td>
+        </tr>
+        <tr>
+          <td><span class="field-name">RFQ_CastingCost_Fund_InfoTechnicalStudy</span></td>
+          <td><span class="db-tag cast" style="margin:0">Casting</span></td>
+          <td>Estudio técnico: piezas/hora y operarios por fila</td>
+          <td>FK a Header + row_number</td>
+        </tr>
+        <tr>
+          <td><span class="field-name">RFQ_CastingCost_Fund_InfoPA</span></td>
+          <td><span class="db-tag cast" style="margin:0">Casting / Machining</span></td>
+          <td>Info PA: materiales y coste EUR (+ RMB para China)</td>
+          <td>FK a Header + row_number</td>
+        </tr>
+        <tr>
+          <td><span class="field-name">RFQ_MachiningCost_Inversion</span></td>
+          <td><span class="db-tag mach" style="margin:0">Machining</span></td>
+          <td>Datos de inversión: Need True, Client Not Paid, Paid Client + breakdown 6 años. Additional Facilities solo para Wuhu.</td>
+          <td>FK a Header</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       SECCIÓN 4 — TQP
+  ══════════════════════════════════════════ -->
+  <section class="section" id="tqp">
+    <div class="section-eyebrow">04 · Módulo TQP</div>
+    <h2>Technical Quotation Parameters</h2>
+    <p class="section-intro">El TQP es el primer paso obligatorio para el flujo de Casting. Rellena automáticamente el Excel TQP con datos del ERP y, tras la intervención manual del usuario, recoge los parámetros técnicos del producto.</p>
+
+    <!-- INSERT -->
+    <div class="flow-block tqp">
+      <div class="flow-block-header open" onclick="toggleBlock(this)">
+        <div class="flow-block-icon">📥</div>
+        <div class="flow-block-title">
+          <h4>TQP Data Insert</h4>
+          <span>PASO 1 · Automático</span>
+        </div>
+        <div class="flow-block-direction">
+          <span class="badge-erp">Expertis</span>
+          <span class="arrow-icon">→</span>
+          <span class="badge-tqp">TQP.xlsm</span>
+        </div>
+        <span class="toggle-chevron">▼</span>
+      </div>
+      <div class="flow-block-body">
+        <div class="note amber">
+          <span class="note-icon">📄</span>
+          <div class="note-body">
+            <strong>Archivo destino:</strong> Copia de <code>TQP.xlsm</code> → <code>Ingenieria Output/TQP/TQP.xlsm</code><br>
+            <strong>Hoja destino:</strong> <code>Preliminary info</code>
+          </div>
+        </div>
+        <div class="sub-heading">Datos escritos en el Excel</div>
+        <table class="data-table">
+          <thead><tr><th>Celda</th><th>Campo Expertis</th><th>Tabla origen</th><th>Descripción</th></tr></thead>
+          <tbody>
+            <tr><td><span class="cell-ref">D10</span></td><td><span class="field-name">NumOferta</span></td><td><span class="source-tag src-erp">Expertis</span></td><td>Número de oferta</td></tr>
+            <tr><td><span class="cell-ref">D11</span></td><td><span class="field-name">DescEmpresa</span></td><td><span class="source-tag src-erp">tbMaestroEmpresa</span></td><td>Nombre del cliente (lookup por IDEmpresa)</td></tr>
+            <tr><td><span class="cell-ref">D14</span></td><td><span class="field-name">RefCliente</span></td><td><span class="source-tag src-erp">Expertis</span></td><td>Referencia del cliente</td></tr>
+            <tr><td><span class="cell-ref">G20</span></td><td><span class="field-name">Ramp-up Sum</span></td><td><span class="source-tag src-erp">vIPSCIRampUps</span></td><td>Suma de todos los volúmenes anuales no nulos</td></tr>
+            <tr><td><span class="cell-ref">G21</span></td><td><span class="field-name">Ramp-up Status</span></td><td><span class="source-tag src-erp">vIPSCIRampUps</span></td><td>Dropdown: <strong>GIVEN</strong> si hay datos · <strong>UNKNOWN</strong> si no</td></tr>
+            <tr><td><span class="cell-ref">G22</span></td><td><span class="field-name">Ramp-up Average</span></td><td><span class="source-tag src-erp">vIPSCIRampUps</span></td><td>Media de los volúmenes disponibles</td></tr>
+          </tbody>
+        </table>
+        <div class="note info">
+          <span class="note-icon">✏️</span>
+          <div class="note-body"><strong>Acción manual requerida:</strong> El usuario debe completar las hojas <code>T.Q.P.1</code> a <code>T.Q.P.6</code> con los datos técnicos del producto y marcar <strong>YES</strong> en las celdas <code>E30:E35</code> de <em>Preliminary info</em> para indicar qué cotizaciones procesar.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RECOLECT -->
+    <div class="flow-block tqp">
+      <div class="flow-block-header open" onclick="toggleBlock(this)">
+        <div class="flow-block-icon">📤</div>
+        <div class="flow-block-title">
+          <h4>TQP Brakes Data Recolection</h4>
+          <span>PASO 2 · Automático</span>
+        </div>
+        <div class="flow-block-direction">
+          <span class="badge-tqp">TQP.xlsm</span>
+          <span class="arrow-icon">→</span>
+          <span class="badge-cast">BD SQL Server</span>
+        </div>
+        <span class="toggle-chevron">▼</span>
+      </div>
+      <div class="flow-block-body">
+        <div class="note amber">
+          <span class="note-icon">🗄️</span>
+          <div class="note-body">
+            <strong>Tabla destino:</strong> <code>RFQ_TQP_DataCastingCost</code><br>
+            <strong>Clave única:</strong> <code>NumOferta + quotationToBeCalculated + version</code> · Si existe → UPDATE · Si no → INSERT
+          </div>
+        </div>
+        <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px;">Solo procesa las hojas marcadas con <strong style="color:var(--text-head)">YES</strong> en <code>E30:E35</code>. El mapeo es E30→T.Q.P.1, E31→T.Q.P.2 … E35→T.Q.P.6.</p>
+        <div class="sub-heading">Datos leídos por hoja T.Q.P.X activa</div>
+        <table class="data-table">
+          <thead><tr><th>Celda Excel</th><th>Campo BD</th><th>Descripción</th></tr></thead>
+          <tbody>
+            <tr><td><span class="cell-ref">G7</span></td><td><span class="field-name">Plant</span></td><td>Planta de producción</td></tr>
+            <tr><td><span class="cell-ref">G8</span></td><td><span class="field-name">productName</span></td><td>Nombre del producto</td></tr>
+            <tr><td><span class="cell-ref">G16</span></td><td><span class="field-name">netWeight</span></td><td>Peso neto (kg)</td></tr>
+            <tr><td><span class="cell-ref">D28</span></td><td><span class="field-name">numberCavitiesPerTool</span></td><td>Número de cavidades por molde</td></tr>
+            <tr><td><span class="cell-ref">D61</span></td><td><span class="field-name">yield</span></td><td>Rendimiento (%)</td></tr>
+            <tr><td><span class="cell-ref">D62</span></td><td><span class="field-name">grossWeight</span></td><td>Peso bruto (kg)</td></tr>
+            <tr><td><span class="cell-ref">D65</span></td><td><span class="field-name">mouldingSpeed</span></td><td>Velocidad de moldeo</td></tr>
+            <tr><td><span class="cell-ref">D67</span></td><td><span class="field-name">finalMouldingSpeed</span></td><td>Velocidad final de moldeo</td></tr>
+            <tr><td><span class="cell-ref">D68</span></td><td><span class="field-name">mouldingInternalScrap</span></td><td>Scrap interno de moldeo</td></tr>
+            <tr><td><span class="cell-ref">D76</span></td><td><span class="field-name">numberCoresPerPart</span></td><td>Número de machos por pieza</td></tr>
+          </tbody>
+        </table>
+        <div class="sub-heading">Machos — condicional según numberCoresPerPart</div>
+        <table class="data-table">
+          <thead><tr><th>Condición</th><th>Celda</th><th>Campo BD</th></tr></thead>
+          <tbody>
+            <tr><td rowspan="4" style="color:var(--amber)">= 0.05 ó = 1<br><em style="font-size:11px;color:var(--text-dim)">Macho 1</em></td><td><span class="cell-ref">D86</span></td><td><span class="field-name">netWeightCore</span></td></tr>
+            <tr><td><span class="cell-ref">D89</span></td><td><span class="field-name">cycleSpeed</span></td></tr>
+            <tr><td><span class="cell-ref">D91</span></td><td><span class="field-name">cavitiesOnCoreBox</span></td></tr>
+            <tr><td><span class="cell-ref">D94</span></td><td><span class="field-name">corePainting</span></td></tr>
+            <tr><td rowspan="4" style="color:var(--teal)">&gt; 1<br><em style="font-size:11px;color:var(--text-dim)">+ Macho 2</em></td><td><span class="cell-ref">E86</span></td><td><span class="field-name">netWeightCore2</span></td></tr>
+            <tr><td><span class="cell-ref">E89</span></td><td><span class="field-name">cycleSpeed2</span></td></tr>
+            <tr><td><span class="cell-ref">E91</span></td><td><span class="field-name">cavitiesOnCoreBox2</span></td></tr>
+            <tr><td><span class="cell-ref">E94</span></td><td><span class="field-name">corePainting2</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       SECCIÓN 5 — CASTING COST
+  ══════════════════════════════════════════ -->
+  <section class="section" id="casting">
+    <div class="section-eyebrow">05 · Módulo Casting Cost</div>
+    <h2>Costes de Fundición</h2>
+    <p class="section-intro">Genera y procesa el Excel de costes de fundición <code>CostesIngenieria.xlsx</code>. Depende del TQP para los datos técnicos. El Recolect guarda los datos en 7 tablas de base de datos.</p>
+
+    <!-- INSERT -->
+    <div class="flow-block cast">
+      <div class="flow-block-header open" onclick="toggleBlock(this)">
+        <div class="flow-block-icon">📥</div>
+        <div class="flow-block-title">
+          <h4>Casting Cost Data Insert</h4>
+          <span>PASO 3 · Automático (2 sub-pasos)</span>
+        </div>
+        <div class="flow-block-direction">
+          <span class="badge-erp">Expertis</span>
+          <span class="arrow-icon">+</span>
+          <span class="badge-tqp">BD TQP</span>
+          <span class="arrow-icon">→</span>
+          <span class="badge-cast">CostesIngenieria.xlsx</span>
+        </div>
+        <span class="toggle-chevron">▼</span>
+      </div>
+      <div class="flow-block-body">
+        <div class="note info">
+          <span class="note-icon">📄</span>
+          <div class="note-body">
+            <strong>Archivo generado:</strong> <code>Ingenieria Output/Casting/CostesIngenieria_RFQ{n}_v{v}.xlsx</code><br>
+            <strong>Este job ejecuta dos sub-pasos internos en secuencia.</strong>
+          </div>
+        </div>
+
+        <div class="sub-heading"><span class="sub-num">sub-paso A</span> Datos de Expertis → hoja Technical Study</div>
+        <table class="data-table">
+          <thead><tr><th>Celda</th><th>Campo</th><th>Origen</th></tr></thead>
+          <tbody>
+            <tr><td><span class="cell-ref">B19</span></td><td><span class="field-name">NumOferta</span></td><td><span class="source-tag src-erp">tbOfertaComercialCabecera</span></td></tr>
+            <tr><td><span class="cell-ref">B20</span></td><td><span class="field-name">IDProjectManager</span></td><td><span class="source-tag src-erp">tbOfertaComercialCabecera</span></td></tr>
+            <tr><td><span class="cell-ref">B25</span></td><td><span class="field-name">IDUsuarioLogistica</span></td><td><span class="source-tag src-erp">tbOfertaComercialCabecera</span></td></tr>
+            <tr><td><span class="cell-ref">B26</span></td><td><span class="field-name">RefCliente</span></td><td><span class="source-tag src-erp">tbOfertaComercialCabecera</span></td></tr>
+            <tr><td><span class="cell-ref">B27</span></td><td><span class="field-name">DescReferencia</span></td><td><span class="source-tag src-erp">tbOfertaComercialCabecera</span></td></tr>
+            <tr><td><span class="cell-ref">E19</span></td><td>Media de volúmenes (hasta 6)</td><td><span class="source-tag src-erp">vIPSCIRampUps</span></td></tr>
+            <tr><td><span class="cell-ref">E20</span></td><td>Conteo de años con volumen</td><td><span class="source-tag src-erp">vIPSCIRampUps</span></td></tr>
+            <tr><td><span class="cell-ref">E26–E31</span></td><td>Volúmenes individuales por año (últimos 6)</td><td><span class="source-tag src-erp">vIPSCIRampUps</span></td></tr>
+          </tbody>
+        </table>
+
+        <div class="sub-heading"><span class="sub-num">sub-paso B</span> Datos TQP → hoja Technical Study</div>
+        <p style="color:var(--text-dim);font-size:13px;margin-bottom:12px;">Se leen de <code>RFQ_TQP_DataCastingCost</code> filtrando por <code>NumOferta + quotationToBeCalculated + version</code>.</p>
+        <table class="data-table">
+          <thead><tr><th>Celda</th><th>Campo TQP</th><th>Descripción</th></tr></thead>
+          <tbody>
+            <tr><td><span class="cell-ref">B34</span></td><td><span class="field-name teal">mouldingSpeed</span></td><td>Velocidad de moldeo</td></tr>
+            <tr><td><span class="cell-ref">B35</span></td><td><span class="field-name teal">finalMouldingSpeed</span></td><td>Velocidad final de moldeo</td></tr>
+            <tr><td><span class="cell-ref">B36</span></td><td><span class="field-name teal">netWeight</span></td><td>Peso neto</td></tr>
+            <tr><td><span class="cell-ref">D38</span></td><td><span class="field-name teal">yield</span></td><td>Rendimiento</td></tr>
+            <tr><td><span class="cell-ref">B41</span></td><td><span class="field-name teal">numberCavitiesPerTool</span></td><td>Cavidades por molde</td></tr>
+            <tr><td><span class="cell-ref">B45</span></td><td><span class="field-name teal">grossWeight</span></td><td>Peso bruto</td></tr>
+            <tr><td><span class="cell-ref">D77</span></td><td><span class="field-name teal">numberCoresPerPart</span></td><td>Número de machos</td></tr>
+            <tr><td><span class="cell-ref">B77–F77</span></td><td><span class="field-name teal">netWeightCore, cycleSpeed, cavitiesOnCoreBox, corePainting</span></td><td>Macho 1</td></tr>
+            <tr><td><span class="cell-ref">B78–F78</span></td><td><span class="field-name teal">netWeightCore2, cycleSpeed2, cavitiesOnCoreBox2, corePainting2</span></td><td>Macho 2</td></tr>
+          </tbody>
+        </table>
+        <div class="note info">
+          <span class="note-icon">✏️</span>
+          <div class="note-body"><strong>Acción manual requerida:</strong> El usuario abre el Excel generado y completa los costes de materiales en las hojas de fundición por planta (Fund. D.BCN + D.TER, Fund. D. ROV, etc.).</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RECOLECT -->
+    <div class="flow-block cast">
+      <div class="flow-block-header open" onclick="toggleBlock(this)">
+        <div class="flow-block-icon">📤</div>
+        <div class="flow-block-title">
+          <h4>Casting Cost Data Recolect</h4>
+          <span>PASO 4 · Una planta por ejecución</span>
+        </div>
+        <div class="flow-block-direction">
+          <span class="badge-cast">CostesIngenieria.xlsx</span>
+          <span class="arrow-icon">→</span>
+          <span class="badge-cast">7 tablas BD</span>
+        </div>
+        <span class="toggle-chevron">▼</span>
+      </div>
+      <div class="flow-block-body">
+
+        <div class="note success">
+          <span class="note-icon">📁</span>
+          <div class="note-body">
+            <strong>Archivo de trabajo generado:</strong> <code>CostesIngenieria_RFQ{n}_v{v}_{PLANTA}_study{sv}.xlsx</code><br>
+            El archivo base se consume al crear la copia. Para otro estudio, hay que volver a ejecutar el Data Insert.
+          </div>
+        </div>
+
+        <div class="sub-heading"><span class="sub-num">bloque 1</span> Header → RFQ_CastingCost_Fund_Header</div>
+        <p style="color:var(--text-dim);font-size:13px;margin-bottom:12px;">Coordenadas idénticas para todas las hojas excepto WRO. Clave única: <code>rfq_number + version + study_version + plant_code</code>.</p>
+        <table class="data-table">
+          <thead><tr><th>Celda</th><th>Campo BD</th><th>Celda WRO</th></tr></thead>
+          <tbody>
+            <tr><td><span class="cell-ref">C6</span></td><td><span class="field-name">rfq_number</span></td><td>—</td></tr>
+            <tr><td><span class="cell-ref">C7</span></td><td><span class="field-name">production_plant</span></td><td><span class="cell-ref">—</span></td></tr>
+            <tr><td><span class="cell-ref">C8 / D8</span></td><td><span class="field-name">production_line / production_line2</span></td><td><span class="cell-ref">E9</span></td></tr>
+            <tr><td><span class="cell-ref">C9</span></td><td><span class="field-name">customer</span></td><td><span class="cell-ref">E10</span></td></tr>
+            <tr><td><span class="cell-ref">C10</span></td><td><span class="field-name">reference</span></td><td><span class="cell-ref">E12</span></td></tr>
+            <tr><td><span class="cell-ref">C11</span></td><td><span class="field-name">denomination</span></td><td><span class="cell-ref">E13</span></td></tr>
+            <tr><td><span class="cell-ref">C12 / D12</span></td><td><span class="field-name">material / material2</span></td><td><span class="cell-ref">E14</span></td></tr>
+            <tr><td><span class="cell-ref">G9 / G10</span></td><td><span class="field-name">creation_date / revision_date</span></td><td><span class="cell-ref">I12</span></td></tr>
+            <tr><td><span class="cell-ref">G11</span></td><td><span class="field-name">project_manager</span></td><td><span class="cell-ref">I13</span></td></tr>
+            <tr><td><span class="cell-ref">J6–J10</span></td><td><span class="field-name">year_volume, year_net_tons, rough_hours_tons, year_hours, total_mold_weight</span></td><td>NULL</td></tr>
+          </tbody>
+        </table>
+
+        <div class="sub-heading"><span class="sub-num">bloque 2</span> General Info → RFQ_CastingCost_Fund_GeneralInfo</div>
+        <table class="data-table">
+          <thead><tr><th>Celda</th><th>Campo BD</th></tr></thead>
+          <tbody>
+            <tr><td><span class="cell-ref">B13</span></td><td><span class="field-name">production_pl_material</span></td></tr>
+            <tr><td><span class="cell-ref">C14 / C15</span></td><td><span class="field-name">cavities / net_weight</span></td></tr>
+            <tr><td><span class="cell-ref">F14 / F15</span></td><td><span class="field-name">molds_hour / gross_weight</span></td></tr>
+            <tr><td><span class="cell-ref">H14 / H15</span></td><td><span class="field-name">scrap_rate / yield_percentage</span></td></tr>
+            <tr><td><span class="cell-ref">I15 / J15</span></td><td><span class="field-name">scrap_base_price / price_unit</span></td></tr>
+          </tbody>
+        </table>
+
+        <div class="sub-heading"><span class="sub-num">bloque 3</span> Material Costs → RFQ_CastingCost_Fund_MaterialCost</div>
+        <p style="color:var(--text-dim);font-size:13px;margin-bottom:12px;">Múltiples rangos de filas según hoja de planta. Columnas siempre iguales: B=material, C=material_info, D=per_hour, E=units, F=cost, G=total_eur, H=total_scrap, I=acum_eur, J=incl_scrap.</p>
+        <table class="data-table">
+          <thead><tr><th>Planta</th><th>Rangos de filas leídos</th></tr></thead>
+          <tbody>
+            <tr><td>BCN · TER KW · TER DS</td><td><span class="cell-ref">19–46 · 49–52 · 55–74 · 77–78 · 81–83 · 86–89</span></td></tr>
+            <tr><td>Rovigo</td><td><span class="cell-ref">19–42 · 46–49 · 52–71 · 74–75 · 78–80 · 83–86</span></td></tr>
+            <tr><td>Atxondo</td><td><span class="cell-ref">19–36 · 40–43 · 46–65 · 68–69 · 72–74 · 77–80</span></td></tr>
+            <tr><td>China</td><td><span class="cell-ref">19–37 · 41–44 · 47–66 · 71–72 · 75–77 · 80–84</span></td></tr>
+            <tr><td>Brno</td><td>Similar a Atxondo (desplazado)</td></tr>
+            <tr><td>Wroclaw (WRO)</td><td>Excel propio <code>CostesWROCasting.xlsx</code>, estructura diferente</td></tr>
+          </tbody>
+        </table>
+
+        <div class="sub-heading"><span class="sub-num">bloques 4–7</span> Totals, TotalsGlobal, InfoTechnicalStudy, InfoPA</div>
+        <table class="data-table">
+          <thead><tr><th>Bloque</th><th>Tabla BD</th><th>Datos capturados</th><th>Ejemplo filas (BCN)</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Totals</strong></td>
+              <td><span class="field-name">Fund_Totals</span></td>
+              <td>total_type, total_eur, total_scrap, acum_eur, incl_scrap</td>
+              <td><span class="cell-ref">47, 53, 75, 79, 84, 90, 92</span></td>
+            </tr>
+            <tr>
+              <td><strong>Totals Global</strong></td>
+              <td><span class="field-name">Fund_TotalsGlobal</span></td>
+              <td>total_info, kilo, piece</td>
+              <td><span class="cell-ref">95, 96</span></td>
+            </tr>
+            <tr>
+              <td><strong>Info Tech Study</strong></td>
+              <td><span class="field-name">Fund_InfoTechnicalStudy</span></td>
+              <td>pieces_hour, operators (por fila)</td>
+              <td><span class="cell-ref">63–74</span></td>
+            </tr>
+            <tr>
+              <td><strong>Info PA</strong></td>
+              <td><span class="field-name">Fund_InfoPA</span></td>
+              <td>material_info + cost_eur (+ cost_rmb solo China). Grupo 1: col M/N. Grupo 2: col L/N.</td>
+              <td><span class="cell-ref">79–81 + 85–107</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       SECCIÓN 6 — MACHINING
+  ══════════════════════════════════════════ -->
+  <section class="section" id="machining">
+    <div class="section-eyebrow">06 · Módulo Machining</div>
+    <h2>Costes de Mecanizado</h2>
+    <p class="section-intro">Proceso paralelo al Casting pero completamente independiente. No necesita datos TQP. Genera un archivo Excel por planta directamente desde Expertis. Plantas disponibles: Lleida, Wroclaw y Wuhu.</p>
+
+    <!-- INSERT -->
+    <div class="flow-block mach">
+      <div class="flow-block-header open" onclick="toggleBlock(this)">
+        <div class="flow-block-icon">📥</div>
+        <div class="flow-block-title">
+          <h4>Machining Data Insert</h4>
+          <span>PASO 3B · Múltiples plantas simultáneas</span>
+        </div>
+        <div class="flow-block-direction">
+          <span class="badge-erp">Expertis</span>
+          <span class="arrow-icon">→</span>
+          <span class="badge-mach">Cost_Machining_{PLANTA}.xlsx</span>
+        </div>
+        <span class="toggle-chevron">▼</span>
+      </div>
+      <div class="flow-block-body">
+
+        <div class="note" style="background:var(--teal-dim);border-color:rgba(38,196,184,.2);color:#5ec9c4;">
+          <span class="note-icon">✨</span>
+          <div class="note-body"><strong>Sin dependencia TQP:</strong> Este módulo extrae directamente de Expertis. No necesita que el TQP haya sido procesado previamente. Puedes seleccionar varias plantas a la vez y se genera un archivo independiente para cada una.</div>
+        </div>
+
+        <div class="sub-heading">Datos extraídos de Expertis</div>
+        <table class="data-table">
+          <thead><tr><th>Campo Expertis</th><th>Transformación</th><th>Tabla</th></tr></thead>
+          <tbody>
+            <tr><td><span class="field-name">DescReferencia</span></td><td>Escrito directo</td><td><span class="source-tag src-erp">tbOfertaComercialCabecera</span></td></tr>
+            <tr><td><span class="field-name">IDUsuarioLogistica</span></td><td>Escrito directo</td><td><span class="source-tag src-erp">tbOfertaComercialCabecera</span></td></tr>
+            <tr><td><span class="field-name">VolumenXXXX</span></td><td>Últimos 6 años con valor, orden descendente</td><td><span class="source-tag src-erp">vIPSCIRampUps</span></td></tr>
+          </tbody>
+        </table>
+
+        <div class="sub-heading">Celdas escritas según planta</div>
+        <table class="data-table">
+          <thead><tr><th>Campo</th><th>Lleida</th><th>Wroclaw</th><th>Wuhu</th></tr></thead>
+          <tbody>
+            <tr><td>Nombre planta</td><td><span class="cell-ref">C17</span></td><td><span class="cell-ref">C17</span></td><td><span class="cell-ref">C7</span></td></tr>
+            <tr><td>IDUsuarioLogistica</td><td><span class="cell-ref">C18</span></td><td><span class="cell-ref">C18</span></td><td><span class="cell-ref">C8</span></td></tr>
+            <tr><td>DescReferencia</td><td><span class="cell-ref">C20</span></td><td><span class="cell-ref">C20</span></td><td><span class="cell-ref">C10</span></td></tr>
+            <tr><td>Hoja cabecera</td><td><code>plantilla coste mecanizado</code></td><td><code>plantilla coste mecanizado</code></td><td><code>Escandallo</code></td></tr>
+            <tr><td>Volúmenes (fila)</td><td><span class="cell-ref">Cap&amp;Inv fila 18</span> (C:H)</td><td><span class="cell-ref">Cap&amp;Inv fila 19</span> (C:H)</td><td><span class="cell-ref">Cap&amp;Inv fila 18</span> (C:H)</td></tr>
+          </tbody>
+        </table>
+        <div class="note info">
+          <span class="note-icon">✏️</span>
+          <div class="note-body"><strong>Acción manual requerida:</strong> El usuario completa los costes de mecanizado en cada archivo: escandallo de costes, datos de inversión en <code>Cap&amp;Inv</code> y cualquier otro campo necesario.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RECOLECT -->
+    <div class="flow-block mach">
+      <div class="flow-block-header open" onclick="toggleBlock(this)">
+        <div class="flow-block-icon">📤</div>
+        <div class="flow-block-title">
+          <h4>Machining Data Recolect</h4>
+          <span>PASO 5 · Una planta por ejecución · 3 bloques</span>
+        </div>
+        <div class="flow-block-direction">
+          <span class="badge-mach">Cost_Machining.xlsx</span>
+          <span class="arrow-icon">→</span>
+          <span class="badge-mach">3 tablas BD</span>
+        </div>
+        <span class="toggle-chevron">▼</span>
+      </div>
+      <div class="flow-block-body">
+
+        <div class="sub-heading"><span class="sub-num">bloque 1</span> Header → RFQ_CastingCost_Fund_Header (cost_type = 'machining')</div>
+        <p style="color:var(--text-dim);font-size:13px;margin-bottom:12px;">Reutiliza la misma tabla que Casting, diferenciada por el campo <code>cost_type = 'machining'</code>.</p>
+        <table class="data-table">
+          <thead><tr><th>Campo BD</th><th>Lleida / Wroclaw</th><th>Wuhu</th></tr></thead>
+          <tbody>
+            <tr><td><span class="field-name">production_plant</span></td><td><span class="cell-ref">C17</span></td><td><span class="cell-ref">C7</span></td></tr>
+            <tr><td><span class="field-name">customer</span></td><td><span class="cell-ref">C18</span></td><td><span class="cell-ref">C8</span></td></tr>
+            <tr><td><span class="field-name">reference</span></td><td><span class="cell-ref">C19</span></td><td><span class="cell-ref">C9</span></td></tr>
+            <tr><td><span class="field-name">denomination</span></td><td><span class="cell-ref">C20</span></td><td><span class="cell-ref">C10</span></td></tr>
+          </tbody>
+        </table>
+
+        <div class="sub-heading"><span class="sub-num">bloque 2</span> Inversión → RFQ_MachiningCost_Inversion · hoja Cap&amp;Inv</div>
+        <table class="data-table">
+          <thead><tr><th>Campo BD</th><th>Lleida</th><th>Wroclaw</th><th>Wuhu</th></tr></thead>
+          <tbody>
+            <tr><td><span class="field-name">Total_Need_True 1/2</span></td><td><span class="cell-ref">E46 / F46</span></td><td><span class="cell-ref">E50 / F50</span></td><td><span class="cell-ref">E50 / F50</span></td></tr>
+            <tr><td><span class="field-name">Total_Client_No_Paid 1/2</span></td><td><span class="cell-ref">E61 / F61</span></td><td><span class="cell-ref">E65 / F65</span></td><td><span class="cell-ref">E60 / F60</span></td></tr>
+            <tr><td><span class="field-name">Total_Paid_Client 1/2</span></td><td><span class="cell-ref">G77 / H77</span></td><td><span class="cell-ref">G81 / H81</span></td><td><span class="cell-ref">G90 / I90</span></td></tr>
+            <tr><td><span class="field-name">Breakdown Actual Need year1–6</span></td><td><span class="cell-ref">O46:T46</span></td><td><span class="cell-ref">O49:T49</span></td><td><span class="cell-ref">R50:W50</span></td></tr>
+            <tr><td><span class="field-name">Breakdown Client Not Paid year1–6</span></td><td><span class="cell-ref">O61:T61</span></td><td><span class="cell-ref">O66:T66</span></td><td><span class="cell-ref">R60:W60</span></td></tr>
+            <tr><td><span class="field-name teal">Total_Additional_Facilities 1/2 ⚡</span></td><td style="color:var(--text-dim)">NULL</td><td style="color:var(--text-dim)">NULL</td><td><span class="cell-ref">E69 / F69</span></td></tr>
+            <tr><td><span class="field-name teal">Additional Facilities year1–6 ⚡</span></td><td style="color:var(--text-dim)">NULL</td><td style="color:var(--text-dim)">NULL</td><td><span class="cell-ref">R67:W67</span></td></tr>
+          </tbody>
+        </table>
+        <p style="color:var(--text-dim);font-size:12px;margin-top:-12px;margin-bottom:20px;">⚡ Additional Facilities es exclusivo de la planta Wuhu.</p>
+
+        <div class="sub-heading"><span class="sub-num">bloque 3</span> Info PA → RFQ_CastingCost_Fund_InfoPA</div>
+        <table class="data-table">
+          <thead><tr><th>Planta</th><th>Hoja</th><th>Rango filas</th><th>Col. material</th><th>Col. cost_eur</th><th>Filas omitidas</th></tr></thead>
+          <tbody>
+            <tr><td>Lleida</td><td><code>plantilla coste mecanizado</code></td><td><span class="cell-ref">105–128</span></td><td>Col 16 (P)</td><td>Col 20 (T)</td><td>fila 127</td></tr>
+            <tr><td>Wroclaw</td><td><code>plantilla coste mecanizado</code></td><td><span class="cell-ref">79–98</span></td><td>Col 15 (O)</td><td>Col 17 (Q)</td><td>fila 97</td></tr>
+            <tr><td>Wuhu</td><td><code>Escandallo</code></td><td><span class="cell-ref">95–118</span></td><td>Col 16 (P)</td><td>Col 20 (T)</td><td>fila 117</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       SECCIÓN 7 — PA DATA INSERT
+  ══════════════════════════════════════════ -->
+  <section class="section" id="pa">
+    <div class="section-eyebrow">07 · Módulo Controlling</div>
+    <h2>PA Data Insert</h2>
+    <p class="section-intro">Paso final del proceso. Consolida los costes guardados (Casting o Machining) junto con los volúmenes de Expertis y los escribe en la PlantillaPA para el análisis financiero de Controlling.</p>
+
+    <div class="flow-block pa">
+      <div class="flow-block-header open" onclick="toggleBlock(this)">
+        <div class="flow-block-icon">📊</div>
+        <div class="flow-block-title">
+          <h4>PA Data Insert</h4>
+          <span>PASO 6 · Operación completa (sin Recolect separado)</span>
+        </div>
+        <div class="flow-block-direction">
+          <span class="badge-erp">Expertis</span>
+          <span class="arrow-icon">+</span>
+          <span class="badge-cast">BD Costes</span>
+          <span class="arrow-icon">→</span>
+          <span class="badge-pa">PlantillaPA.xlsx</span>
+        </div>
+        <span class="toggle-chevron">▼</span>
+      </div>
+      <div class="flow-block-body">
+
+        <div class="note purple">
+          <span class="note-icon">📄</span>
+          <div class="note-body">
+            <strong>Archivo generado:</strong> <code>Controlling Output/PlantillaPA_RFQ{n}_v{v}_ctrl{cv}.xlsx</code><br>
+            Si el archivo <strong>ya existe</strong>, solo se actualizan las hojas (Databases) seleccionadas. Las demás no se tocan.
+          </div>
+        </div>
+
+        <div class="sub-heading">Fuente 1 — Base de datos interna</div>
+        <p style="color:var(--text-dim);font-size:13px;margin-bottom:12px;">Consulta <code>RFQ_CastingCost_Fund_Header</code> filtrando por <code>rfq_number + version + plant_code + study_version + cost_type</code>.</p>
+        <table class="data-table">
+          <thead><tr><th>Celda PlantillaPA</th><th>Campo BD</th><th>Condición</th></tr></thead>
+          <tbody>
+            <tr><td><span class="cell-ref">D2</span></td><td><span class="field-name">denomination</span></td><td>Todas las databases</td></tr>
+            <tr><td><span class="cell-ref">D3</span></td><td><span class="field-name">customer</span></td><td>Solo <strong>Database A</strong></td></tr>
+            <tr><td><span class="cell-ref">D4</span></td><td><span class="field-name">production_plant</span></td><td>Todas las databases</td></tr>
+            <tr><td><span class="cell-ref">D5</span></td><td><span class="field-name">material</span></td><td>Todas las databases</td></tr>
+            <tr><td><span class="cell-ref">Y2</span></td><td><span class="field-name">study_version</span></td><td>Todas las databases</td></tr>
+            <tr><td><span class="cell-ref">Y3</span></td><td><code>rfq_number/version</code> (ej: S2020229/1)</td><td>Todas las databases</td></tr>
+          </tbody>
+        </table>
+
+        <div class="sub-heading">Fuente 2 — Expertis (volúmenes)</div>
+        <table class="data-table">
+          <thead><tr><th>Database</th><th>Hoja destino</th><th>Fila</th><th>Columnas</th><th>Máx. valores</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Database A</strong></td><td>Hoja <code>A</code></td><td><span class="cell-ref">Fila 12</span></td><td>E12:V12</td><td>18</td></tr>
+            <tr><td>Database B … J</td><td>Hoja con el mismo nombre</td><td><span class="cell-ref">Fila 11</span></td><td>E11:V11</td><td>18</td></tr>
+          </tbody>
+        </table>
+
+        <div class="sub-heading">Costes InfoPA — Mapeo row_number → celda Excel</div>
+        <div class="map-grid">
+          <div class="map-block">
+            <div class="map-block-header cast">Casting · Columna G</div>
+            <table>
+              <tr><td class="rn">row 1/2</td><td class="cl">O2 / O3</td><td style="font-size:12px;color:var(--text-dim)">Identificación</td></tr>
+              <tr><td class="rn">row 4–15</td><td class="cl">G10–G21</td><td style="font-size:12px;color:var(--text-dim)">Costes principales</td></tr>
+              <tr><td class="rn">row 20–24</td><td class="cl">G26–G30</td><td style="font-size:12px;color:var(--text-dim)">Costes adicionales</td></tr>
+            </table>
+          </div>
+          <div class="map-block">
+            <div class="map-block-header mach">Machining · Columna D</div>
+            <table>
+              <tr><td class="rn">row 1/2</td><td class="cl">O2 / O3</td><td style="font-size:12px;color:var(--text-dim)">Identificación</td></tr>
+              <tr><td class="rn">row 4</td><td class="cl">D13</td><td style="font-size:12px;color:var(--text-dim)">Coste principal</td></tr>
+              <tr><td class="rn">row 6–13</td><td class="cl">D15–D22</td><td style="font-size:12px;color:var(--text-dim)">Costes principales</td></tr>
+              <tr><td class="rn">row 17–21</td><td class="cl">D26–D30</td><td style="font-size:12px;color:var(--text-dim)">Costes adicionales</td></tr>
+            </table>
+          </div>
+        </div>
+        <p style="color:var(--text-dim);font-size:12px;">Solo se escriben los row_numbers contemplados en el mapeo que tengan valor en la BD. Los demás se ignoran.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       SECCIÓN 8 — PLANTAS
+  ══════════════════════════════════════════ -->
+  <section class="section" id="plantas">
+    <div class="section-eyebrow">08 · Referencia</div>
+    <h2>Plantas soportadas</h2>
+    <p class="section-intro">El sistema distingue entre plantas de fundición (Casting) y plantas de mecanizado (Machining), cada una con su hoja Excel y configuración específica.</p>
+
+    <div class="sub-heading">Fundición — Casting Cost</div>
+    <div class="plant-matrix">
+      <div class="plant-card"><div class="plant-name">DRAXTON Barcelona</div><div class="plant-sheet">Hoja: Fund. D.BCN + D.TER</div><span class="plant-badge">BCN_TER</span></div>
+      <div class="plant-card"><div class="plant-name">DRAXTON Teruel KW</div><div class="plant-sheet">Hoja: Fund. D.BCN + D.TER</div><span class="plant-badge">BCN_TER</span></div>
+      <div class="plant-card"><div class="plant-name">DRAXTON Teruel DS</div><div class="plant-sheet">Hoja: Fund. D.BCN + D.TER</div><span class="plant-badge">BCN_TER</span></div>
+      <div class="plant-card"><div class="plant-name">DRAXTON Rovigo</div><div class="plant-sheet">Hoja: Fund. D. ROV</div><span class="plant-badge">ROV</span></div>
+      <div class="plant-card"><div class="plant-name">DRAXTON Atxondo</div><div class="plant-sheet">Hoja: Fund. D. ATX</div><span class="plant-badge">ATX</span></div>
+      <div class="plant-card"><div class="plant-name">DRAXTON China</div><div class="plant-sheet">Hoja: Fund. D. CHI · Incluye RMB</div><span class="plant-badge">CHI</span></div>
+      <div class="plant-card"><div class="plant-name">DRAXTON Brno</div><div class="plant-sheet">Hoja: Fund. D. BRN</div><span class="plant-badge">BRN</span></div>
+      <div class="plant-card special"><div class="plant-name">DRAXTON Wroclaw</div><div class="plant-sheet">Excel propio: CostesWROCasting.xlsx</div><span class="plant-badge">WRO · Especial</span></div>
+    </div>
+
+    <div class="sub-heading">Mecanizado — Machining Cost</div>
+    <div class="plant-matrix" style="grid-template-columns: repeat(3,1fr)">
+      <div class="plant-card"><div class="plant-name">DRAXTON Lleida</div><div class="plant-sheet">Template: Cost_Machining_LLE.xlsx</div><span class="plant-badge" style="background:var(--teal-dim);color:var(--teal)">LLE</span></div>
+      <div class="plant-card"><div class="plant-name">DRAXTON Wroclaw</div><div class="plant-sheet">Template: Cost_Machining_WRO.xlsx</div><span class="plant-badge" style="background:var(--teal-dim);color:var(--teal)">WRO</span></div>
+      <div class="plant-card special"><div class="plant-name">DRAXTON Wuhu</div><div class="plant-sheet">Template: Cost_Machining_Wuhu.xlsx · Hoja Escandallo · Additional Facilities</div><span class="plant-badge">WUHU · Especial</span></div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       SECCIÓN 9 — ARCHIVOS
+  ══════════════════════════════════════════ -->
+  <section class="section" id="archivos">
+    <div class="section-eyebrow">09 · Referencia</div>
+    <h2>Archivos generados</h2>
+    <p class="section-intro">Todos los archivos siguen una nomenclatura con RFQ, versión, planta e identificador de estudio para asegurar trazabilidad completa.</p>
+
+    <table class="data-table">
+      <thead><tr><th>Tipo</th><th>Carpeta</th><th>Nombre del archivo</th><th>Notas</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="db-tag tqp" style="margin:0">TQP</span></td>
+          <td><code>Ingenieria Output/TQP/</code></td>
+          <td><code>TQP.xlsm</code></td>
+          <td>Archivo con macros VBA</td>
+        </tr>
+        <tr>
+          <td><span class="db-tag cast" style="margin:0">Casting base</span></td>
+          <td><code>Ingenieria Output/Casting/</code></td>
+          <td><code>CostesIngenieria_RFQ{n}_v{v}.xlsx</code></td>
+          <td>Se consume al crear el estudio</td>
+        </tr>
+        <tr>
+          <td><span class="db-tag cast" style="margin:0">Casting estudio</span></td>
+          <td><code>Ingenieria Output/Casting/</code></td>
+          <td><code>CostesIngenieria_RFQ{n}_v{v}_{PLANTA}_study{sv}.xlsx</code></td>
+          <td>Copia de trabajo por planta</td>
+        </tr>
+        <tr>
+          <td><span class="db-tag mach" style="margin:0">Machining base</span></td>
+          <td><code>Ingenieria Output/Machining/{PLANTA}/</code></td>
+          <td><code>Cost_Machining_RFQ{n}_v{v}_{PLANTA}.xlsx</code></td>
+          <td>Se consume al crear el estudio</td>
+        </tr>
+        <tr>
+          <td><span class="db-tag mach" style="margin:0">Machining estudio</span></td>
+          <td><code>Ingenieria Output/Machining/{PLANTA}/</code></td>
+          <td><code>Cost_Machining_RFQ{n}_v{v}_{PLANTA}_sv{sv}.xlsx</code></td>
+          <td>Copia de trabajo por planta</td>
+        </tr>
+        <tr>
+          <td><span class="db-tag pa" style="margin:0">PlantillaPA</span></td>
+          <td><code>Controlling Output/</code></td>
+          <td><code>PlantillaPA_RFQ{n}_v{v}_ctrl{cv}.xlsx</code></td>
+          <td>Se actualiza incrementalmente</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="note info">
+      <span class="note-icon">♻️</span>
+      <div class="note-body">
+        <strong>Archivos base vs. archivos de estudio:</strong> Los archivos <em>base</em> se crean durante el Data Insert y se consumen (renombran) en el primer Recolect. Para crear un nuevo estudio con la misma versión RFQ, es necesario volver a ejecutar el Data Insert para regenerar el archivo base. El archivo <em>PlantillaPA</em> es la excepción: si existe, se actualiza sin consumirse.
+      </div>
+    </div>
+  </section>
+
+</main><!-- /main -->
+
+<script>
+function toggleBlock(header) {
+  header.classList.toggle('open');
+  const body = header.nextElementSibling;
+  body.classList.toggle('collapsed');
+}
+
+function setActive(el) {
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// Collapse all initially except first in each section - open by default
+// They start open, users can collapse
+
+// Highlight nav on scroll
+const sections = document.querySelectorAll('section[id], div.hero');
+const navItems = document.querySelectorAll('.nav-item[href]');
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(s => {
+    const top = s.offsetTop - 120;
+    if (window.scrollY >= top) current = s.id || 'overview';
+  });
+  navItems.forEach(n => {
+    n.classList.remove('active');
+    if (n.getAttribute('href') === '#' + current) n.classList.add('active');
+  });
+}, { passive: true });
+</script>
+</body>
+</html>
